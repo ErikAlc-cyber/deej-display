@@ -1,5 +1,5 @@
 # Introduction
-This is a fork of the project [deej](https://github.com/omriharel/deej), I added SSD1306 display support.
+This is a fork of the project [deej](https://github.com/omriharel/deej), I added SSD1306 display support. The GUI was originally made by [Eggdale](https://github.com/Eggdale/deej-oled)
 
 ## How to use
 1. Open your Arduino IDE and go to Sketch > Include Library > Manage Libraries. The Library Manager should open.
