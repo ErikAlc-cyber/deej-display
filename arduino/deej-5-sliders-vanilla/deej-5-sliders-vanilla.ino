@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Adafruit_NeoPixel.h>
 #include <Fonts/FreeSans9pt7b.h>
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
@@ -8,22 +9,30 @@
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(1, 16, NEO_GRB + NEO_KHZ800);
 
 const int NUM_SLIDERS = 4;
 const int NUM_OF_LAYERS = 2;
 const int analogInputs[NUM_SLIDERS] = {A0, A1, A2, A3};
-
+const uint8_t buttonInput = D6;
 //make a buffer to avoid jitter
 const int BUFFER_SIZE = 5;
 int analogBuffer[NUM_SLIDERS][BUFFER_SIZE];
 
-int displayVolume[NUM_SLIDERS];
+int displayVolume[NUM_OF_LAYERS][NUM_SLIDERS];
 int analogSliderValues[NUM_SLIDERS];
 String analogSliderNames[NUM_SLIDERS] = {"Master","Mic","Music","Other"};
 
 const unsigned long sleepAfter = 15000; // this value will change how long the oled will display until turning off.
 unsigned long startTime;
 unsigned long currTime;
+
+uint8_t currentLayer = 0;
+bool inhibitReads = false;
+
+uint32_t rojo = pixels.Color(150,0,0);
+uint32_t verde = pixels.Color(0,150,0);
+uint32_t azul = pixels.Color(0,0,150);
 
 //see http://javl.github.io/image2cpp/ for how to make these
 const unsigned char sys [] PROGMEM = {
@@ -62,6 +71,8 @@ void setup() {
   }
 
   Serial.begin(9600);
+  pinMode(buttonInput, INPUT_PULLUP);
+  pixels.begin();
   analogReadResolution(12);
 
   for (int i = 0; i < NUM_SLIDERS; i++) {
@@ -79,15 +90,18 @@ void setup() {
 }
 
 void loop() {
+  pixels.setPixelColor(1, verde);
   updateSliderValues();
   sendSliderValues(); // Actually send data (all the time)
   // printSliderValues(); // For debug
   currTime = millis();
+  updateButtonInput();
   if (currTime - startTime >= sleepAfter) {
     display.clearDisplay();
     display.display();
     startTime = currTime;
   } 
+  pixels.show();
   delay(10);
 }
 
@@ -110,8 +124,8 @@ void updateSliderValues() {
     avgValue /= BUFFER_SIZE;
 
     // Update Slider value if change is great
-    if (abs(avgValue - displayVolume[i]) > 30) {
-      displayVolume[i] = avgValue;
+    if (abs(avgValue - displayVolume[currentLayer][i]) > 30 && inhibitReads == false) {
+      displayVolume[currentLayer][i] = avgValue;
       displayVol(i);
       display.display();
       startTime = currTime;
@@ -121,12 +135,13 @@ void updateSliderValues() {
 
 void sendSliderValues() {
   String builtString = String(""); 
-  
-  
-  for (int i = 0; i < NUM_SLIDERS; i++) {
-    builtString += String((int)displayVolume[i]/4);
-    if (i < NUM_SLIDERS - 1) {
-      builtString += String("|");
+
+ for(uint8_t j = 0; j < NUM_OF_LAYERS; j++){
+    for (int i = 0; i < NUM_SLIDERS; i++) {
+      builtString += String((int)displayVolume[j][i]/4);
+      //if (i < NUM_SLIDERS - 1 && j < NUM_OF_LAYERS  + 1) {
+        builtString += String("|");
+      //}
     }
   }
   Serial.println(builtString);
@@ -135,7 +150,7 @@ void sendSliderValues() {
 void displayVol(int i){
   display.clearDisplay();
   
-  int percentage = percentage_volume(displayVolume[i]);
+  int percentage = percentage_volume(displayVolume[currentLayer][i]);
   display.drawBitmap(10, 2, icons[i], 18, 18, WHITE);
   display.fillRect(10, 25, percentage/1.5, 10, WHITE);
   display.setTextSize(2);             // Normal 1:1 pixel scale
@@ -152,15 +167,37 @@ int percentage_volume(int actual_value){
   return (actual_value * 100) / 4095;
 }
 
-void printSliderValues() {
-  for (int i = 0; i < NUM_SLIDERS; i++) {
-    String printedString = String("Slider #") + String(i + 1) + String(": ") + String(displayVolume[i]/4) + String(" mV");
-    Serial.write(printedString.c_str());
-
-    if (i < NUM_SLIDERS - 1) {
-      Serial.write(" | ");
+void updateButtonInput() {
+  static uint8_t oldButton = 0;
+  uint8_t newButton = digitalRead(buttonInput);
+ 
+  if ((newButton == 0) & (oldButton == 1)) {
+    if (inhibitReads) {
+      inhibitReads = false;
+      pixels.setPixelColor(1, verde);
     } else {
-      Serial.write("\n");
+      currentLayer++;
+      inhibitReads = true;
+      pixels.setPixelColor(1, rojo);
+      if (currentLayer >= NUM_OF_LAYERS) {
+        currentLayer = 0;
+      }
+    }
+    oldButton = newButton;
+  }
+}
+
+void printSliderValues() {
+  for(int j = 0; j < NUM_OF_LAYERS; j++){
+    for (int i = 0; i < NUM_SLIDERS; i++) {
+      String printedString = String("Slider #") + String(i + 1) + String(": ") + String(displayVolume[j][i]/4) + String(" mV");
+      Serial.write(printedString.c_str());
+
+      if (i < NUM_SLIDERS - 1 && j < NUM_OF_LAYERS + 1) {
+        Serial.write(" | ");
+      } else {
+        Serial.write("\n");
+      }
     }
   }
 }
