@@ -82,6 +82,7 @@ void loop() {
   updateSliderValues();
   sendSliderValues(); // Actually send data (all the time)
   // printSliderValues(); // For debug
+  currTime = millis();
   if (currTime - startTime >= sleepAfter) {
     display.clearDisplay();
     display.display();
@@ -123,7 +124,7 @@ void sendSliderValues() {
   
   
   for (int i = 0; i < NUM_SLIDERS; i++) {
-    builtString += String((int)analogSliderValues[i]);
+    builtString += String((int)displayVolume[i]/4);
     if (i < NUM_SLIDERS - 1) {
       builtString += String("|");
     }
@@ -153,7 +154,7 @@ int percentage_volume(int actual_value){
 
 void printSliderValues() {
   for (int i = 0; i < NUM_SLIDERS; i++) {
-    String printedString = String("Slider #") + String(i + 1) + String(": ") + String(analogSliderValues[i]) + String(" mV");
+    String printedString = String("Slider #") + String(i + 1) + String(": ") + String(displayVolume[i]/4) + String(" mV");
     Serial.write(printedString.c_str());
 
     if (i < NUM_SLIDERS - 1) {

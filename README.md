@@ -8,6 +8,7 @@ This is a fork of the project [deej](https://github.com/omriharel/deej), I added
 
 ## Note
 In the code there is a ```&Wire``` variable that seems odd, looks like the IDE can configure automatically the I2C Pins, in my case (I use the [RP2040-Zero](https://www.waveshare.com/wiki/RP2040-Zero)) the pins I use are 4 and 5.
+Also, my ADC's have 12 bits of resolutions so my values are calculated to 4095, but if you're using an arduino, you need to stick to the original implementation to deej.
 
 ## Caution
 This is a "Dumb" implementation, keep in mind that is a work in progress, but feel free to suggest changes!!
